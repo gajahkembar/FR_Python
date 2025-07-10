@@ -1,0 +1,17 @@
+syntax = "proto3";
+package worker;
+
+import "common.proto";
+
+service WorkerService {
+  rpc ProcessFace (FaceRequest) returns (FaceResponse);
+}
+
+message FaceRequest {
+  bytes image_data = 1;
+}
+
+message FaceResponse {
+  common.FaceEmbedding embedding = 1;
+  string message = 2;
+}

@@ -1,0 +1,42 @@
+syntax = "proto3";
+package driver;
+
+import "common.proto";
+import "executor.proto";
+
+service DriverService {
+  rpc RouteIdentify (ImageQuery) returns (IdentifyResult);
+  rpc RouteVerify (VerifyImagePair) returns (VerifyResult);
+  rpc RegisterFace (RegisterRequest) returns (RegisterResponse);
+}
+
+message ImageQuery {
+  bytes image_data = 1;
+}
+
+message IdentifyResult {
+  string user_id = 1;
+  float similarity = 2;
+  string message = 3;
+  repeated executor.FaceMatch top_matches = 4;
+}
+
+message VerifyImagePair {
+  bytes image1 = 1;
+  bytes image2 = 2;
+}
+
+message VerifyResult {
+  float similarity = 1;
+  string result = 2;
+}
+
+message RegisterRequest {
+  bytes image_data = 1;
+  string user_id = 2;
+}
+
+message RegisterResponse {
+  string user_id = 1;
+  string message = 2;
+}

@@ -1,0 +1,44 @@
+syntax = "proto3";
+package controller;
+
+import "common.proto";
+import "executor.proto";
+
+service ControllerService {
+  rpc Identify (IdentifyRequest) returns (IdentifyResponse);
+  rpc VerifyFaces (VerifyRequest) returns (VerifyResponse);
+  rpc RegisterFace (RegisterRequest) returns (RegisterResponse);
+}
+
+message IdentifyRequest {
+  bytes image_data = 1;
+}
+
+message IdentifyResponse {
+  string user_id = 1;
+  float similarity = 2;
+  string result = 3;
+  repeated executor.FaceMatch top_matches = 4;
+}
+
+message VerifyRequest {
+  bytes image1 = 1;
+  bytes image2 = 2;
+}
+
+message VerifyResponse {
+  float similarity = 1;
+  string result = 2;
+}
+
+message RegisterRequest {
+  bytes image_data = 1;
+  string name = 2;
+  string origin = 3;
+  string user_id = 4;
+}
+
+message RegisterResponse {
+  string user_id = 1;
+  string message = 2;
+}

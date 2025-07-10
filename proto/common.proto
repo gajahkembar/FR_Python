@@ -1,0 +1,13 @@
+syntax = "proto3";
+package common;
+
+message FaceEmbedding {
+  string user_id = 1;
+  repeated float embedding = 2;
+}
+
+message FaceMetadata {
+  string user_id = 1;
+  string name = 2;
+  string origin = 3;
+}

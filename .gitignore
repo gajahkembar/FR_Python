@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Env
+.env
+.venv/
+*.env
+
+# Model
+*.onnx
+*.pb
+*.tflite
+*.bin
+
+# Log dan output
+*.log
+*.csv
+*.xlsx
+
+# VSCode & Jupyter
+.vscode/
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db

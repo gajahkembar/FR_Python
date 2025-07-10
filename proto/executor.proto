@@ -1,0 +1,46 @@
+syntax = "proto3";
+package executor;
+
+import "common.proto";
+
+service ExecutorService {
+  rpc ComputeSimilarity (ComputeRequest) returns (ComputeResponse);
+  rpc VerifyFaces (VerifyRequest) returns (VerifyResponse);
+  rpc RegisterFace (RegisterRequest) returns (RegisterResponse);
+}
+
+message FaceMatch {
+  string user_id = 1;
+  float similarity = 2;
+}
+
+message ComputeRequest {
+  bytes image_data = 1;
+}
+
+message ComputeResponse {
+  string best_user_id = 1;
+  float similarity = 2;
+  repeated FaceMatch top_matches = 3;
+}
+
+message VerifyRequest {
+  bytes image1 = 1;
+  bytes image2 = 2;
+}
+
+message VerifyResponse {
+  float similarity = 1;
+  string result = 2;
+}
+
+message RegisterRequest {
+  bytes image_data = 1;
+  string user_id = 2;
+  string name = 3;
+  string origin = 4;
+}
+
+message RegisterResponse {
+  string message = 1;
+}
