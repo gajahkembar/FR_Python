@@ -1,24 +1,23 @@
-# face_engine/driver/main.py
-
 import grpc
 import logging
 from datetime import datetime
-from concurrent import futures
+from concurrent.futures import ThreadPoolExecutor
 import itertools
 import threading
 import sys
 import os
 import numpy as np
 import cv2
+import multiprocessing
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from proto import driver_pb2, driver_pb2_grpc, common_pb2
-from proto import executor_pb2, executor_pb2_grpc
+from proto import driver_pb2, driver_pb2_grpc, executor_pb2, executor_pb2_grpc
 from src.embedder import ArcFaceEmbedder
 from src.matcher import cosine_similarity
 from src.aligner import get_aligned_face
 
-# Logging
+# Logging global (semua driver share satu file)
 log_file = "driver/driver.log"
 logging.basicConfig(
     filename=log_file,
@@ -28,12 +27,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger("Driver")
 
-# Daftar executor yang akan diakses round-robin
-EXECUTOR_ADDRESSES = [
-    "localhost:6001",
-    "localhost:6002",
-    "localhost:6003"
-]
+# Executor Configuration
+EXECUTOR_ADDRESSES = [f"localhost:{port}" for port in range(6001, 6017)]
 executor_cycle = itertools.cycle(EXECUTOR_ADDRESSES)
 cycle_lock = threading.Lock()
 
@@ -41,172 +36,114 @@ class DriverServicer(driver_pb2_grpc.DriverServiceServicer):
     def __init__(self):
         self.executor_cycle = executor_cycle
         self.embedder = ArcFaceEmbedder("models/w600k_r50.onnx")
+        self.stubs = {
+            addr: executor_pb2_grpc.ExecutorServiceStub(grpc.insecure_channel(addr))
+            for addr in EXECUTOR_ADDRESSES
+        }
+
+    def get_executor_stub(self):
+        with cycle_lock:
+            addr = next(self.executor_cycle)
+        logger.info(f"Routing to Executor at {addr}")
+        return self.stubs[addr]
 
     def RouteIdentify(self, request, context):
-        with cycle_lock:
-            executor_addr = next(self.executor_cycle)
-
-        logger.info(f"Routing to Executor at {executor_addr}")
-
         try:
-            with grpc.insecure_channel(executor_addr) as channel:
-                stub = executor_pb2_grpc.ExecutorServiceStub(channel)
-                compute_request = executor_pb2.ComputeRequest(
-                    image_data=request.image_data
-                )
-                compute_response = stub.ComputeSimilarity(compute_request)
+            stub = self.get_executor_stub()
+            compute_req = executor_pb2.ComputeRequest(image_data=request.image_data)
+            response = stub.ComputeSimilarity(compute_req)
 
-            if not compute_response.top_matches:
-                logger.warning("No matches returned from Executor")
+            if not response.top_matches:
                 return driver_pb2.IdentifyResult(
-                    user_id="",
-                    similarity=0.0,
-                    message="NO MATCHES",
-                    top_matches=[],
+                    user_id="", similarity=0.0, message="NO MATCHES", top_matches=[]
                 )
 
-            best_match = compute_response.top_matches[0]
-            logger.info(f"Top-1 from Executor: {best_match.user_id} with sim={best_match.similarity:.4f}")
-
+            top = response.top_matches[0]
             return driver_pb2.IdentifyResult(
-                user_id=best_match.user_id,
-                similarity=best_match.similarity,
+                user_id=top.user_id,
+                similarity=top.similarity,
                 message="OK",
-                top_matches=compute_response.top_matches
+                top_matches=response.top_matches,
             )
-
         except Exception as e:
-            logger.error(f"Executor call failed: {e}")
-            return driver_pb2.IdentifyResult(
-                user_id="",
-                similarity=0.0,
-                message="FAILED",
-                top_matches=[],
-            )
-    
+            logger.error(f"RouteIdentify failed: {e}")
+            return driver_pb2.IdentifyResult(user_id="", similarity=0.0, message="FAILED")
+
     def RouteVerify(self, request, context):
         trx_id = datetime.now().strftime('%Y%m%d%H%M%S%f')
         try:
-            logger.info(f"[{trx_id}] Performing local verification in Driver")
+            logger.info(f"[{trx_id}] ▶️ RouteVerify request received")
 
-            # Decode image1
-            img1_array = np.frombuffer(request.image1, dtype=np.uint8)
-            img1 = cv2.imdecode(img1_array, cv2.IMREAD_COLOR)
-            if img1 is None:
-                raise ValueError("Image1 decoding failed")
+            img1 = cv2.imdecode(np.frombuffer(request.image1, dtype=np.uint8), cv2.IMREAD_COLOR)
+            img2 = cv2.imdecode(np.frombuffer(request.image2, dtype=np.uint8), cv2.IMREAD_COLOR)
+            if img1 is None or img2 is None:
+                raise ValueError("Image decoding failed")
 
-            # Decode image2
-            img2_array = np.frombuffer(request.image2, dtype=np.uint8)
-            img2 = cv2.imdecode(img2_array, cv2.IMREAD_COLOR)
-            if img2 is None:
-                raise ValueError("Image2 decoding failed")
+            aligned1 = get_aligned_face(img1)
+            aligned2 = get_aligned_face(img2)
+            if aligned1 is None or aligned1.size == 0 or aligned2 is None or aligned2.size == 0:
+                raise ValueError("Face alignment failed")
 
-            # Face alignment
-            try:
-                aligned1 = get_aligned_face(img1)
-                aligned2 = get_aligned_face(img2)
-            except Exception as e:
-                raise ValueError(f"Face alignment failed: {e}")
-
-            # Dapatkan embedding
             emb1 = self.embedder.get_embedding(aligned1)
             emb2 = self.embedder.get_embedding(aligned2)
 
-            # Cosine similarity
             sim = cosine_similarity(emb1, emb2)
-            logger.info(f"[{trx_id}] Cosine similarity: {sim:.4f}")
+            result = "MATCH" if sim >= 0.5 else "NOT_MATCH" if sim < 0.3 else "REVIEW"
 
-            # Thresholds
-            TAR_TH = 0.5
-            FAR_TH = 0.3
-            if sim >= TAR_TH:
-                result = "MATCH"
-            elif sim < FAR_TH:
-                result = "NOT_MATCH"
-            else:
-                result = "REVIEW"
-
+            logger.info(f"[{trx_id}] ✅ RouteVerify result: {result} (similarity={sim:.4f})")
             return driver_pb2.VerifyResult(similarity=sim, result=result)
 
         except Exception as e:
-            logger.error(f"[{trx_id}] Local verification failed: {e}")
+            logger.error(f"[{trx_id}] ❌ RouteVerify failed: {e}")
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
             return driver_pb2.VerifyResult(similarity=0.0, result="FAILED")
 
     def RegisterFace(self, request, context):
         trx_id = datetime.now().strftime('%Y%m%d%H%M%S%f')
         try:
-            logger.info(f"[{trx_id}] RegisterFace received: user_id={request.user_id}")
-
-            # Decode image
-            img_array = np.frombuffer(request.image_data, dtype=np.uint8)
-            img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+            logger.info(f"[{trx_id}] RegisterFace user_id={request.user_id}")
+            img = cv2.imdecode(np.frombuffer(request.image_data, dtype=np.uint8), cv2.IMREAD_COLOR)
             if img is None:
-                raise ValueError("Image decoding failed")
+                raise ValueError("Image decode failed")
 
-            # Dapatkan embedding
-            embedding = self.embedder.get_embedding(img)
-
-            # Kirim ke executor untuk disimpan
-            with cycle_lock:
-                executor_addr = next(self.executor_cycle)
-            logger.info(f"[{trx_id}] Routing RegisterFace to Executor at {executor_addr}")
-
-            with grpc.insecure_channel(executor_addr) as channel:
-                stub = executor_pb2_grpc.ExecutorServiceStub(channel)
-                executor_req = executor_pb2.RegisterRequest(
-                    user_id=request.user_id,
-                    image_data=request.image_data,
-                    name="",
-                    origin=""
-                )
-                executor_res = stub.RegisterFace(executor_req)
-
-            logger.info(f"[{trx_id}] RegisterFace success: {executor_res.message}")
-            return driver_pb2.RegisterResponse(
+            stub = self.get_executor_stub()
+            executor_req = executor_pb2.RegisterRequest(
                 user_id=request.user_id,
-                message=executor_res.message
+                image_data=request.image_data,
+                name="",
+                origin=""
             )
+            res = stub.RegisterFace(executor_req)
 
+            return driver_pb2.RegisterResponse(user_id=request.user_id, message=res.message)
         except Exception as e:
             logger.error(f"[{trx_id}] RegisterFace failed: {e}")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
-            return driver_pb2.RegisterResponse(
-                user_id=request.user_id,
-                message="Failed to register"
-            )
+            return driver_pb2.RegisterResponse(user_id=request.user_id, message="FAILED")
 
-def serve(port: int):
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+def serve(port):
+    server = grpc.server(ThreadPoolExecutor(max_workers=os.cpu_count()))
     driver_pb2_grpc.add_DriverServiceServicer_to_server(DriverServicer(), server)
-    server.add_insecure_port(f'[::]:{port}')
+    server.add_insecure_port(f"[::]:{port}")
     logger.info(f"Driver running on port {port}")
     server.start()
     server.wait_for_termination()
 
-def run_on_port(port: int):
-    log_file = f"driver/driver-{port}.log"
-    logging.basicConfig(
-        filename=log_file,
-        filemode='a',
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s"
-    )
-    serve(port)
-
 if __name__ == "__main__":
-    import multiprocessing
     multiprocessing.freeze_support()
 
-    ports = [1968]
+    # Jalankan semua port default jika tidak diberi argumen
+    ports = list(range(1968, 1968 + 3))  # 3 driver
     if len(sys.argv) > 1:
         ports = list(map(int, sys.argv[1:]))
 
     processes = []
     for port in ports:
-        proc = multiprocessing.Process(target=run_on_port, args=(port,))
-        proc.start()
-        processes.append(proc)
+        p = multiprocessing.Process(target=serve, args=(port,))
+        p.start()
+        processes.append(p)
 
-    for proc in processes:
-        proc.join()
+    for p in processes:
+        p.join()

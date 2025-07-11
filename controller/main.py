@@ -1,21 +1,22 @@
 # face_engine/controller/main.py
 
 import grpc
-from concurrent import futures
-from datetime import datetime
 import logging
+from concurrent.futures import ThreadPoolExecutor
+import concurrent.futures as futures
+from datetime import datetime
+from dotenv import load_dotenv
 import sys
 import os
-import numpy as np
-import itertools
 import base64
-from dotenv import load_dotenv
 import uuid
+import numpy as np
+from collections import deque
+
 import cv2
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from proto import controller_pb2, controller_pb2_grpc, driver_pb2_grpc, driver_pb2, executor_pb2, executor_pb2_grpc, common_pb2
-from src.db_log import insert_log
+from proto import controller_pb2, controller_pb2_grpc, driver_pb2_grpc, driver_pb2
 from src.db import save_metadata_to_postgres
 from src.redis_store import save_metadata_to_redis
 
@@ -32,56 +33,36 @@ logging.basicConfig(
 )
 logger = logging.getLogger("Controller")
 
-# Dummy embedder
-def dummy_generate_embedding(image_data: bytes):
-    np.random.seed(len(image_data))  # Seed based on input length
-    return list(np.random.rand(512).astype(np.float32))
 
 class ControllerServicer(controller_pb2_grpc.ControllerServiceServicer):
     def __init__(self):
         driver_addrs = os.getenv("DRIVER_PORTS", "127.0.0.1:1968").split(',')
-        executor_addrs = os.getenv("EXECUTOR_PORTS", "127.0.0.1:6001,127.0.0.1:6002,127.0.0.1:6003").split(',')
-        
-        self.driver_cycle = itertools.cycle(driver_addrs)
-        self.executor_cycle = itertools.cycle(executor_addrs)
-
+        self.driver_queue = deque(driver_addrs)
+        self.driver_channels = {addr: grpc.insecure_channel(addr) for addr in driver_addrs}
+        self.driver_stubs = {addr: driver_pb2_grpc.DriverServiceStub(self.driver_channels[addr]) for addr in driver_addrs}
         logger.info(f"Controller initialized with driver pool: {driver_addrs}")
-        logger.info(f"Controller initialized with executor pool: {executor_addrs}")
+
+    def get_next_driver(self):
+        self.driver_queue.rotate(-1)
+        return self.driver_queue[0]
+
+    def decode_image_bytes(self, image_data):
+        return base64.b64decode(image_data) if isinstance(image_data, str) else image_data
 
     def Identify(self, request, context):
-        logger.info("Received Identify request")
         trx_id = datetime.now().strftime('%Y%m%d%H%M%S%f')
-
+        logger.info(f"[{trx_id}] Received Identify request")
         try:
-            # Decode base64 to raw bytes
-            try:
-                logger.info(f"[{trx_id}] image_data type before decode: {type(request.image_data)}")
+            raw_image_bytes = self.decode_image_bytes(request.image_data)
 
-                if isinstance(request.image_data, str):
-                    raw_image_bytes = base64.b64decode(request.image_data)
-                else:
-                    raw_image_bytes = request.image_data
+            driver_addr = self.get_next_driver()
+            stub = self.driver_stubs[driver_addr]
 
-                logger.info(f"[{trx_id}] raw_image_bytes type after decode: {type(raw_image_bytes)}, size={len(raw_image_bytes)} bytes")
-            except Exception as decode_err:
-                logger.error(f"[{trx_id}] Failed to decode base64 image: {decode_err}")
-                context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-                context.set_details("Invalid base64 image")
-                return controller_pb2.IdentifyResponse()
+            start_time = datetime.now()
+            response = stub.RouteIdentify(driver_pb2.ImageQuery(image_data=raw_image_bytes))
+            duration = (datetime.now() - start_time).total_seconds()
+            logger.info(f"[{trx_id}] gRPC Identify duration: {duration:.4f}s")
 
-            # Round-robin pick driver
-            driver_address = next(self.driver_cycle)
-            logger.info(f"[{trx_id}] Routing to Driver at {driver_address}")
-
-            # Kirim raw image ke driver
-            with grpc.insecure_channel(driver_address) as channel:
-                stub = driver_pb2_grpc.DriverServiceStub(channel)
-                image_query = driver_pb2.ImageQuery(image_data=raw_image_bytes)
-                response = stub.RouteIdentify(image_query)
-
-            logger.info(f"[{trx_id}] Result: user={response.user_id}, similarity={response.similarity:.4f}, msg={response.message}")
-
-            # Konfigurasi threshold
             MATCH_THRESHOLD = 0.5
             REVIEW_THRESHOLD = 0.3
 
@@ -91,21 +72,15 @@ class ControllerServicer(controller_pb2_grpc.ControllerServiceServicer):
                 result = "REVIEW"
             else:
                 result = "NOT_MATCH"
-            
+
             return controller_pb2.IdentifyResponse(
                 user_id=response.user_id,
                 similarity=response.similarity,
                 result=result,
                 top_matches=response.top_matches
             )
-
-        except grpc.RpcError as e:
-            logger.error(f"[{trx_id}] gRPC error: {e.code()} {e.details()}")
-            context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(e))
-            return controller_pb2.IdentifyResponse()
         except Exception as e:
-            logger.exception(f"[{trx_id}] Unexpected error in Identify")
+            logger.exception(f"[{trx_id}] Identify failed")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return controller_pb2.IdentifyResponse()
@@ -113,77 +88,57 @@ class ControllerServicer(controller_pb2_grpc.ControllerServiceServicer):
     def VerifyFaces(self, request, context):
         trx_id = datetime.now().strftime('%Y%m%d%H%M%S%f')
         try:
-            # Pilih driver secara round-robin
-            driver_address = next(self.driver_cycle)
-            logger.info(f"[{trx_id}] Routing to Driver (Verify) at {driver_address}")
+            driver_addr = self.get_next_driver()
+            stub = self.driver_stubs[driver_addr]
 
-            with grpc.insecure_channel(driver_address) as channel:
-                stub = driver_pb2_grpc.DriverServiceStub(channel)
-                verify_req = driver_pb2.VerifyImagePair(
-                    image1=request.image1,
-                    image2=request.image2
-                )
-                res = stub.RouteVerify(verify_req)
+            start_time = datetime.now()
+            res = stub.RouteVerify(driver_pb2.VerifyImagePair(
+                image1=request.image1,
+                image2=request.image2
+            ))
+            duration = (datetime.now() - start_time).total_seconds()
+            logger.info(f"[{trx_id}] gRPC Verify duration: {duration:.4f}s")
 
-            logger.info(f"[{trx_id}] Verify result: sim={res.similarity:.4f}, result={res.result}")            
             return controller_pb2.VerifyResponse(
                 similarity=res.similarity,
                 result=res.result
             )
-
-        except grpc.RpcError as e:
-            logger.error(f"[{trx_id}] gRPC error in Verify: {e}")
-            context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(e))
-            return controller_pb2.VerifyResponse()
         except Exception as e:
-            logger.exception(f"[{trx_id}] Unexpected error in Verify")
+            logger.exception(f"[{trx_id}] Verify failed")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return controller_pb2.VerifyResponse()
 
     def RegisterFace(self, request, context):
-        print(f"✅ masuk ke Controller.RegisterFace: {request.user_id}")
         trx_id = datetime.now().strftime('%Y%m%d%H%M%S%f')
+        logger.info(f"[{trx_id}] Received RegisterFace request")
         try:
-            logger.info(f"[{trx_id}] Received RegisterFace request")
+            user_id = request.user_id or str(uuid.uuid4())
 
-            # Buat UUID untuk user baru
-            user_id = request.user_id
-            logger.info(f"[{trx_id}] Generated UUID: {user_id}")
+            # Parallel save metadata
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                executor.submit(save_metadata_to_postgres, user_id, request.name, request.origin)
+                executor.submit(save_metadata_to_redis, user_id, request.name, request.origin)
 
-            # Simpan metadata ke PostgreSQL dan Redis
-            save_metadata_to_postgres(user_id, request.name, request.origin)
-            save_metadata_to_redis(user_id, request.name, request.origin)
+            driver_addr = self.get_next_driver()
+            stub = self.driver_stubs[driver_addr]
 
-            # Ambil driver secara round-robin
-            driver_address = next(self.driver_cycle)
-            logger.info(f"[{trx_id}] Routing RegisterFace to Driver at {driver_address}")
+            res = stub.RegisterFace(driver_pb2.RegisterRequest(
+                user_id=user_id,
+                image_data=request.image_data
+            ))
 
-            with grpc.insecure_channel(driver_address) as channel:
-                stub = driver_pb2_grpc.DriverServiceStub(channel)
-                register_req = driver_pb2.RegisterRequest(
-                    image_data=request.image_data,
-                    user_id=user_id
-                )
-                res = stub.RegisterFace(register_req)
-
-            logger.info(f"[{trx_id}] RegisterFace success: user_id={res.user_id}, message={res.message}")
+            logger.info(f"[{trx_id}] Register success: {res.message}")
             return controller_pb2.RegisterResponse(
                 user_id=user_id,
                 message=res.message
             )
-
-        except grpc.RpcError as e:
-            logger.error(f"[{trx_id}] gRPC error in RegisterFace: {e}")
-            context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(e))
-            return controller_pb2.RegisterResponse(user_id="", message="gRPC error")
         except Exception as e:
-            logger.exception(f"[{trx_id}] Unexpected error in RegisterFace")
+            logger.exception(f"[{trx_id}] RegisterFace failed")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return controller_pb2.RegisterResponse(user_id="", message="Internal error")
+
 
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
@@ -194,6 +149,7 @@ def serve():
     logger.info(f"Controller running on port {PORT}")
     server.start()
     server.wait_for_termination()
+
 
 if __name__ == '__main__':
     serve()
