@@ -8,6 +8,7 @@ import sys
 import os
 import numpy as np
 import cv2
+import time
 import multiprocessing
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -71,26 +72,40 @@ class DriverServicer(driver_pb2_grpc.DriverServiceServicer):
 
     def RouteVerify(self, request, context):
         trx_id = datetime.now().strftime('%Y%m%d%H%M%S%f')
-        try:
-            logger.info(f"[{trx_id}] ▶️ RouteVerify request received")
+        start_time = time.time()
+        logger.info(f"[{trx_id}] ▶️ RouteVerify request received")
 
+        try:
+            # Decode kedua gambar
             img1 = cv2.imdecode(np.frombuffer(request.image1, dtype=np.uint8), cv2.IMREAD_COLOR)
             img2 = cv2.imdecode(np.frombuffer(request.image2, dtype=np.uint8), cv2.IMREAD_COLOR)
             if img1 is None or img2 is None:
                 raise ValueError("Image decoding failed")
 
-            aligned1 = get_aligned_face(img1)
-            aligned2 = get_aligned_face(img2)
+            # Proses alignment secara paralel
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                future1 = executor.submit(get_aligned_face, img1)
+                future2 = executor.submit(get_aligned_face, img2)
+                aligned1, aligned2 = future1.result(), future2.result()
+
             if aligned1 is None or aligned1.size == 0 or aligned2 is None or aligned2.size == 0:
                 raise ValueError("Face alignment failed")
 
-            emb1 = self.embedder.get_embedding(aligned1)
-            emb2 = self.embedder.get_embedding(aligned2)
+            # Proses embedding secara paralel
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                emb1_future = executor.submit(self.embedder.get_embedding, aligned1)
+                emb2_future = executor.submit(self.embedder.get_embedding, aligned2)
+                emb1, emb2 = emb1_future.result(), emb2_future.result()
 
+            # Hitung cosine similarity
             sim = cosine_similarity(emb1, emb2)
             result = "MATCH" if sim >= 0.5 else "NOT_MATCH" if sim < 0.3 else "REVIEW"
 
             logger.info(f"[{trx_id}] ✅ RouteVerify result: {result} (similarity={sim:.4f})")
+
+            total_time = time.time() - start_time
+            logger.info(f"[{trx_id}] ⏱️ Total duration: {total_time:.4f}s")
+
             return driver_pb2.VerifyResult(similarity=sim, result=result)
 
         except Exception as e:
