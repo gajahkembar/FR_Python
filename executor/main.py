@@ -12,6 +12,7 @@ import cv2
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from proto import executor_pb2, executor_pb2_grpc, common_pb2
 from src.embedder import ArcFaceEmbedder 
+from src.aligner import get_aligned_face
 from executor.db.postgres import save_embedding_to_postgres
 from executor.db.redis import save_embedding_to_redis, load_all_embeddings_from_redis
 
@@ -25,6 +26,17 @@ def setup_logger(port):
         handler.setFormatter(formatter)
         logger.addHandler(handler)
     return logger
+
+def save_debug_image(img, label):
+    if img is None or img.size == 0:
+        print(f"⚠️ Skip saving {label} — image is empty!")
+        return
+
+    debug_dir = "debug_output"
+    os.makedirs(debug_dir, exist_ok=True)
+    filename = f"{label}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+    path = os.path.join(debug_dir, filename)
+    cv2.imwrite(path, img)
 
 class ExecutorServicer(executor_pb2_grpc.ExecutorServiceServicer):
     def __init__(self, logger):
@@ -57,7 +69,15 @@ class ExecutorServicer(executor_pb2_grpc.ExecutorServiceServicer):
             if img is None:
                 raise ValueError("cv2.imdecode returned None")
 
-            query_emb = self.embedder.get_embedding(img)
+            save_debug_image(img, "compute_raw")
+
+            # Align wajah sebelum embedding
+            aligned_face = get_aligned_face(img)
+            if aligned_face is None or aligned_face.size == 0:
+                raise ValueError("Face alignment failed")
+
+            save_debug_image(aligned_face, "compute_aligned")
+            query_emb = self.embedder.get_embedding(aligned_face)
 
             # Hitung similarity ke semua
             embeddings = load_all_embeddings_from_redis()
@@ -106,6 +126,9 @@ class ExecutorServicer(executor_pb2_grpc.ExecutorServiceServicer):
             img1 = self.decode_image(request.image1)
             img2 = self.decode_image(request.image2)
 
+            save_debug_image(img1, "verify_img1")
+            save_debug_image(img2, "verify_img2")
+
             emb1 = self.embedder.get_embedding(img1)
             emb2 = self.embedder.get_embedding(img2)
 
@@ -141,8 +164,20 @@ class ExecutorServicer(executor_pb2_grpc.ExecutorServiceServicer):
             img = self.decode_image(request.image_data)
             self.logger.info("✅ Image successfully decoded")
 
+            try:
+                aligned_face = get_aligned_face(img)
+                if aligned_face is None or aligned_face.size == 0:
+                    raise ValueError("Aligned face is empty after detection")
+            except Exception as e:
+                self.logger.error(f"❌ Face alignment failed: {e}")
+                context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+                context.set_details(f"Face alignment failed: {e}")
+                return executor_pb2.RegisterResponse(message="Failed")
+
+            save_debug_image(aligned_face, f"aligned_{request.user_id}")
+
             # Generate embedding
-            emb = self.embedder.get_embedding(img)
+            emb = self.embedder.get_embedding(aligned_face)
             self.logger.info("✅ Embedding successfully generated")
 
             # Simpan ke Redis dan PostgreSQL

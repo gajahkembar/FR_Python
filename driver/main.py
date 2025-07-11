@@ -16,6 +16,7 @@ from proto import driver_pb2, driver_pb2_grpc, common_pb2
 from proto import executor_pb2, executor_pb2_grpc
 from src.embedder import ArcFaceEmbedder
 from src.matcher import cosine_similarity
+from src.aligner import get_aligned_face
 
 # Logging
 log_file = "driver/driver.log"
@@ -100,9 +101,16 @@ class DriverServicer(driver_pb2_grpc.DriverServiceServicer):
             if img2 is None:
                 raise ValueError("Image2 decoding failed")
 
-            # Get embeddings
-            emb1 = self.embedder.get_embedding(img1)
-            emb2 = self.embedder.get_embedding(img2)
+            # Face alignment
+            try:
+                aligned1 = get_aligned_face(img1)
+                aligned2 = get_aligned_face(img2)
+            except Exception as e:
+                raise ValueError(f"Face alignment failed: {e}")
+
+            # Dapatkan embedding
+            emb1 = self.embedder.get_embedding(aligned1)
+            emb2 = self.embedder.get_embedding(aligned2)
 
             # Cosine similarity
             sim = cosine_similarity(emb1, emb2)

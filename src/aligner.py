@@ -1,18 +1,19 @@
-# src/aligner.py
-import cv2
-import numpy as np
+from insightface.app import FaceAnalysis
+from src.alignment_utils import warp_and_crop_face
 
-# 5-point landmark standard (mata kiri, mata kanan, hidung, mulut kiri, mulut kanan)
-SRC_POINTS = np.array([
-    [38.2946, 51.6963],
-    [73.5318, 51.5014],
-    [56.0252, 71.7366],
-    [41.5493, 92.3655],
-    [70.7299, 92.2041]
-], dtype=np.float32)
+app = FaceAnalysis(name='buffalo_s', providers=['CPUExecutionProvider'])
+app.prepare(ctx_id=0)
 
-def warp_and_crop_face(img: np.ndarray, landmarks: np.ndarray, image_size=(112, 112)):
-    dst = SRC_POINTS
-    M, _ = cv2.estimateAffinePartial2D(landmarks, dst)
-    aligned = cv2.warpAffine(img, M, image_size, borderValue=0.0)
+def get_aligned_face(img):
+    faces = app.get(img)
+    if not faces:
+        raise ValueError("No face detected")
+
+    face = faces[0]
+    if face.kps is None:
+        raise ValueError("No landmarks found for alignment")
+
+    aligned = warp_and_crop_face(img, face.kps, image_size=(112, 112))
+    if aligned is None or aligned.size == 0:
+        raise ValueError("Face detected but warp_and_crop failed")
     return aligned
