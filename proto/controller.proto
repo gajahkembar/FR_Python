@@ -15,10 +15,8 @@ message IdentifyRequest {
 }
 
 message IdentifyResponse {
-  string user_id = 1;
-  float similarity = 2;
-  string result = 3;
-  repeated executor.FaceMatch top_matches = 4;
+  string message = 1;
+  repeated executor.FaceResult results = 2;
 }
 
 message VerifyRequest {

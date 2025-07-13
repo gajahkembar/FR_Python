@@ -26,7 +26,7 @@ from proto import common_pb2 as common__pb2
 from proto import executor_pb2 as executor__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10\x63ontroller.proto\x12\ncontroller\x1a\x0c\x63ommon.proto\x1a\x0e\x65xecutor.proto\"%\n\x0fIdentifyRequest\x12\x12\n\nimage_data\x18\x01 \x01(\x0c\"q\n\x10IdentifyResponse\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x12\n\nsimilarity\x18\x02 \x01(\x02\x12\x0e\n\x06result\x18\x03 \x01(\t\x12(\n\x0btop_matches\x18\x04 \x03(\x0b\x32\x13.executor.FaceMatch\"/\n\rVerifyRequest\x12\x0e\n\x06image1\x18\x01 \x01(\x0c\x12\x0e\n\x06image2\x18\x02 \x01(\x0c\"4\n\x0eVerifyResponse\x12\x12\n\nsimilarity\x18\x01 \x01(\x02\x12\x0e\n\x06result\x18\x02 \x01(\t\"T\n\x0fRegisterRequest\x12\x12\n\nimage_data\x18\x01 \x01(\x0c\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x0e\n\x06origin\x18\x03 \x01(\t\x12\x0f\n\x07user_id\x18\x04 \x01(\t\"4\n\x10RegisterResponse\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t2\xeb\x01\n\x11\x43ontrollerService\x12\x45\n\x08Identify\x12\x1b.controller.IdentifyRequest\x1a\x1c.controller.IdentifyResponse\x12\x44\n\x0bVerifyFaces\x12\x19.controller.VerifyRequest\x1a\x1a.controller.VerifyResponse\x12I\n\x0cRegisterFace\x12\x1b.controller.RegisterRequest\x1a\x1c.controller.RegisterResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10\x63ontroller.proto\x12\ncontroller\x1a\x0c\x63ommon.proto\x1a\x0e\x65xecutor.proto\"%\n\x0fIdentifyRequest\x12\x12\n\nimage_data\x18\x01 \x01(\x0c\"J\n\x10IdentifyResponse\x12\x0f\n\x07message\x18\x01 \x01(\t\x12%\n\x07results\x18\x02 \x03(\x0b\x32\x14.executor.FaceResult\"/\n\rVerifyRequest\x12\x0e\n\x06image1\x18\x01 \x01(\x0c\x12\x0e\n\x06image2\x18\x02 \x01(\x0c\"4\n\x0eVerifyResponse\x12\x12\n\nsimilarity\x18\x01 \x01(\x02\x12\x0e\n\x06result\x18\x02 \x01(\t\"T\n\x0fRegisterRequest\x12\x12\n\nimage_data\x18\x01 \x01(\x0c\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x0e\n\x06origin\x18\x03 \x01(\t\x12\x0f\n\x07user_id\x18\x04 \x01(\t\"4\n\x10RegisterResponse\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t2\xeb\x01\n\x11\x43ontrollerService\x12\x45\n\x08Identify\x12\x1b.controller.IdentifyRequest\x1a\x1c.controller.IdentifyResponse\x12\x44\n\x0bVerifyFaces\x12\x19.controller.VerifyRequest\x1a\x1a.controller.VerifyResponse\x12I\n\x0cRegisterFace\x12\x1b.controller.RegisterRequest\x1a\x1c.controller.RegisterResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -36,15 +36,15 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_IDENTIFYREQUEST']._serialized_start=62
   _globals['_IDENTIFYREQUEST']._serialized_end=99
   _globals['_IDENTIFYRESPONSE']._serialized_start=101
-  _globals['_IDENTIFYRESPONSE']._serialized_end=214
-  _globals['_VERIFYREQUEST']._serialized_start=216
-  _globals['_VERIFYREQUEST']._serialized_end=263
-  _globals['_VERIFYRESPONSE']._serialized_start=265
-  _globals['_VERIFYRESPONSE']._serialized_end=317
-  _globals['_REGISTERREQUEST']._serialized_start=319
-  _globals['_REGISTERREQUEST']._serialized_end=403
-  _globals['_REGISTERRESPONSE']._serialized_start=405
-  _globals['_REGISTERRESPONSE']._serialized_end=457
-  _globals['_CONTROLLERSERVICE']._serialized_start=460
-  _globals['_CONTROLLERSERVICE']._serialized_end=695
+  _globals['_IDENTIFYRESPONSE']._serialized_end=175
+  _globals['_VERIFYREQUEST']._serialized_start=177
+  _globals['_VERIFYREQUEST']._serialized_end=224
+  _globals['_VERIFYRESPONSE']._serialized_start=226
+  _globals['_VERIFYRESPONSE']._serialized_end=278
+  _globals['_REGISTERREQUEST']._serialized_start=280
+  _globals['_REGISTERREQUEST']._serialized_end=364
+  _globals['_REGISTERRESPONSE']._serialized_start=366
+  _globals['_REGISTERRESPONSE']._serialized_end=418
+  _globals['_CONTROLLERSERVICE']._serialized_start=421
+  _globals['_CONTROLLERSERVICE']._serialized_end=656
 # @@protoc_insertion_point(module_scope)

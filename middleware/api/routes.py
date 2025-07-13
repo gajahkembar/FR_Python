@@ -19,10 +19,11 @@ async def register_endpoint(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/identify", response_model=IdentifyResponse)
-async def identify_endpoint(file: UploadFile = File(...)):
+async def identify_endpoint(
+    file: UploadFile = File(...), threshold: float = 0.4):
     try:
         image_bytes = await file.read()
-        result = identify_face(image_bytes)
+        result = identify_face(image_bytes, similarity_threshold=threshold)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

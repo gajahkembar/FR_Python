@@ -1,5 +1,7 @@
 import uuid
 import grpc
+import base64
+import os
 from typing import List
 from proto import controller_pb2, controller_pb2_grpc
 from middleware.db.postgres import (
@@ -19,6 +21,12 @@ from middleware.db.redis import (
 def get_controller_stub():
     channel = grpc.insecure_channel("localhost:1967")
     return controller_pb2_grpc.ControllerServiceStub(channel)
+
+def encode_image_to_base64(path: str) -> str:
+    if not os.path.exists(path):
+        return None
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8")
 
 # Register wajah
 def register_face(image_bytes: bytes, name: str, origin: str):
@@ -65,35 +73,55 @@ def register_face(image_bytes: bytes, name: str, origin: str):
     }
 
 # Identifikasi wajah
-def identify_face(image_bytes: bytes):
+def identify_face(image_bytes: bytes, similarity_threshold: float = 0.4):
     stub = get_controller_stub()
     request = controller_pb2.IdentifyRequest(image_data=image_bytes)
     response = stub.Identify(request)
 
-    matches = []
-    for match in response.top_matches:
-        metadata = get_metadata_from_redis(match.user_id)
-        if not metadata:
-            metadata = get_metadata_from_postgres(match.user_id)
-            # Optional: cache kembali ke Redis jika berhasil
-            if metadata:
-                save_metadata_to_redis(
-                    match.user_id,
-                    metadata.get("name", ""),
-                    metadata.get("asal", "")
-                )
-        matches.append({
-            "user_id": match.user_id,
-            "similarity": match.similarity,
-            "name": metadata.get("name", ""),
-            "origin": metadata.get("origin", metadata.get("asal", ""))  # handle asal/nama
+    face_results = []
+    for face_result in response.results:
+        matches = []
+        for match in face_result.top_matches:
+            if match.similarity < similarity_threshold:
+                continue
+
+            metadata = get_metadata_from_redis(match.user_id)
+            if not metadata:
+                metadata = get_metadata_from_postgres(match.user_id)
+                if metadata:
+                    save_metadata_to_redis(
+                        match.user_id,
+                        metadata.get("name", ""),
+                        metadata.get("asal", "")
+                    )
+
+            name = metadata.get("name", "")
+            origin = metadata.get("origin", metadata.get("asal", ""))
+            safe_name = name.strip()
+            folder = f"{safe_name}_{origin}_{match.user_id}"
+            gallery_filename = f"{folder}.jpg"
+            gallery_path = os.path.join("data", folder, gallery_filename)
+            gallery_image = encode_image_to_base64(gallery_path)
+
+            matches.append({
+                "user_id": match.user_id,
+                "similarity": match.similarity,
+                "name": name,
+                "origin": origin,
+                "gallery_image": gallery_image
+            })
+
+        crop_b64 = base64.b64encode(face_result.crop_image).decode("utf-8")
+
+        face_results.append({
+            "face_index": face_result.face_index,
+            "top_matches": matches,
+            "crop_image": crop_b64
         })
 
     return {
-        "user_id": response.user_id,
-        "similarity": response.similarity,
-        "result": response.result,
-        "top_matches": matches
+        "message": "OK",
+        "faces": face_results
     }
 
 def verify_face(image1_bytes: bytes, image2_bytes: bytes):

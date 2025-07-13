@@ -16,7 +16,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from proto import driver_pb2, driver_pb2_grpc, executor_pb2, executor_pb2_grpc
 from src.embedder import ArcFaceEmbedder
 from src.matcher import cosine_similarity
-from src.aligner import get_aligned_face
+from src.aligner import get_aligned_faces
 
 # Logging global (semua driver share satu file)
 log_file = "driver/driver.log"
@@ -29,7 +29,7 @@ logging.basicConfig(
 logger = logging.getLogger("Driver")
 
 # Executor Configuration
-EXECUTOR_ADDRESSES = [f"localhost:{port}" for port in range(6001, 6017)]
+EXECUTOR_ADDRESSES = [f"localhost:{port}" for port in range(6001, 6006)]
 executor_cycle = itertools.cycle(EXECUTOR_ADDRESSES)
 cycle_lock = threading.Lock()
 
@@ -49,26 +49,39 @@ class DriverServicer(driver_pb2_grpc.DriverServiceServicer):
         return self.stubs[addr]
 
     def RouteIdentify(self, request, context):
+        trx_id = datetime.now().strftime('%Y%m%d%H%M%S%f')
         try:
             stub = self.get_executor_stub()
             compute_req = executor_pb2.ComputeRequest(image_data=request.image_data)
             response = stub.ComputeSimilarity(compute_req)
 
-            if not response.top_matches:
-                return driver_pb2.IdentifyResult(
-                    user_id="", similarity=0.0, message="NO MATCHES", top_matches=[]
-                )
+            if not response.results:
+                return driver_pb2.IdentifyResult(message="NO FACE DETECTED", results=[])
 
-            top = response.top_matches[0]
-            return driver_pb2.IdentifyResult(
-                user_id=top.user_id,
-                similarity=top.similarity,
-                message="OK",
-                top_matches=response.top_matches,
-            )
+            results = []
+
+            for face in response.results:
+                best = face.top_matches[0]
+                logger.info(f"[{trx_id}] Face-{face.face_index}: best match {best.user_id} (sim={best.similarity:.4f})")
+
+                top_matches = [
+                    executor_pb2.FaceMatch(user_id=match.user_id, similarity=match.similarity)
+                    for match in face.top_matches
+                ]
+                result = executor_pb2.FaceResult(
+                    face_index=face.face_index,
+                    top_matches=top_matches,
+                    crop_image=face.crop_image
+                )
+                results.append(result)
+
+            return driver_pb2.IdentifyResult(message="OK", results=results)
+
         except Exception as e:
-            logger.error(f"RouteIdentify failed: {e}")
-            return driver_pb2.IdentifyResult(user_id="", similarity=0.0, message="FAILED")
+            logger.error(f"[{trx_id}] ❌ RouteIdentify failed: {e}")
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
+            return driver_pb2.IdentifyResult(message="FAILED", results=[])
 
     def RouteVerify(self, request, context):
         trx_id = datetime.now().strftime('%Y%m%d%H%M%S%f')
@@ -84,17 +97,21 @@ class DriverServicer(driver_pb2_grpc.DriverServiceServicer):
 
             # Proses alignment secara paralel
             with ThreadPoolExecutor(max_workers=2) as executor:
-                future1 = executor.submit(get_aligned_face, img1)
-                future2 = executor.submit(get_aligned_face, img2)
+                future1 = executor.submit(get_aligned_faces, img1)
+                future2 = executor.submit(get_aligned_faces, img2)
                 aligned1, aligned2 = future1.result(), future2.result()
 
-            if aligned1 is None or aligned1.size == 0 or aligned2 is None or aligned2.size == 0:
+            if not aligned1 or not aligned2:
                 raise ValueError("Face alignment failed")
+
+            face1 = aligned1[0]
+            face2 = aligned2[0]
 
             # Proses embedding secara paralel
             with ThreadPoolExecutor(max_workers=2) as executor:
-                emb1_future = executor.submit(self.embedder.get_embedding, aligned1)
-                emb2_future = executor.submit(self.embedder.get_embedding, aligned2)
+                # Benar (mengirim satu wajah hasil crop)
+                emb1_future = executor.submit(self.embedder.get_embedding, face1)
+                emb2_future = executor.submit(self.embedder.get_embedding, face2)
                 emb1, emb2 = emb1_future.result(), emb2_future.result()
 
             # Hitung cosine similarity
@@ -126,8 +143,8 @@ class DriverServicer(driver_pb2_grpc.DriverServiceServicer):
             executor_req = executor_pb2.RegisterRequest(
                 user_id=request.user_id,
                 image_data=request.image_data,
-                name="",
-                origin=""
+                name=request.name,
+                origin=request.origin
             )
             res = stub.RegisterFace(executor_req)
 

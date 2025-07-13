@@ -14,14 +14,18 @@ message FaceMatch {
   float similarity = 2;
 }
 
+message FaceResult {
+  int32 face_index = 1;
+  repeated FaceMatch top_matches = 2;
+  bytes crop_image = 3;
+}
+
 message ComputeRequest {
   bytes image_data = 1;
 }
 
 message ComputeResponse {
-  string best_user_id = 1;
-  float similarity = 2;
-  repeated FaceMatch top_matches = 3;
+  repeated FaceResult results = 1;
 }
 
 message VerifyRequest {

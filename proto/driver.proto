@@ -15,10 +15,8 @@ message ImageQuery {
 }
 
 message IdentifyResult {
-  string user_id = 1;
-  float similarity = 2;
-  string message = 3;
-  repeated executor.FaceMatch top_matches = 4;
+  string message = 1;
+  repeated executor.FaceResult results = 2;
 }
 
 message VerifyImagePair {
@@ -34,6 +32,8 @@ message VerifyResult {
 message RegisterRequest {
   bytes image_data = 1;
   string user_id = 2;
+  string name = 3;
+  string origin = 4;
 }
 
 message RegisterResponse {

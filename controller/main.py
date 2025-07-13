@@ -63,27 +63,22 @@ class ControllerServicer(controller_pb2_grpc.ControllerServiceServicer):
             duration = (datetime.now() - start_time).total_seconds()
             logger.info(f"[{trx_id}] gRPC Identify duration: {duration:.4f}s")
 
-            MATCH_THRESHOLD = 0.5
-            REVIEW_THRESHOLD = 0.3
-
-            if response.similarity >= MATCH_THRESHOLD:
-                result = "MATCH"
-            elif response.similarity >= REVIEW_THRESHOLD:
-                result = "REVIEW"
-            else:
-                result = "NOT_MATCH"
-
+            # Logging semua hasil wajah
+            for face in response.results:
+                best = face.top_matches[0]
+                logger.info(f"[{trx_id}] 🧠 Face-{face.face_index}: match {best.user_id} (sim={best.similarity:.4f})")
+                logger.info(f"[{trx_id}] Face-{face.face_index} crop size: {len(face.crop_image)} bytes")
+                
             return controller_pb2.IdentifyResponse(
-                user_id=response.user_id,
-                similarity=response.similarity,
-                result=result,
-                top_matches=response.top_matches
+                message="OK",
+                results=response.results
             )
+
         except Exception as e:
             logger.exception(f"[{trx_id}] Identify failed")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
-            return controller_pb2.IdentifyResponse()
+            return controller_pb2.IdentifyResponse(message="FAILED", results=[])
 
     def VerifyFaces(self, request, context):
         trx_id = datetime.now().strftime('%Y%m%d%H%M%S%f')
@@ -125,7 +120,9 @@ class ControllerServicer(controller_pb2_grpc.ControllerServiceServicer):
 
             res = stub.RegisterFace(driver_pb2.RegisterRequest(
                 user_id=user_id,
-                image_data=request.image_data
+                image_data=request.image_data,
+                name=request.name,
+                origin=request.origin
             ))
 
             logger.info(f"[{trx_id}] Register success: {res.message}")
@@ -138,7 +135,6 @@ class ControllerServicer(controller_pb2_grpc.ControllerServiceServicer):
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return controller_pb2.RegisterResponse(user_id="", message="Internal error")
-
 
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))

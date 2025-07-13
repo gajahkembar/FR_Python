@@ -26,7 +26,7 @@ from proto import common_pb2 as common__pb2
 from proto import executor_pb2 as executor__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0c\x64river.proto\x12\x06\x64river\x1a\x0c\x63ommon.proto\x1a\x0e\x65xecutor.proto\" \n\nImageQuery\x12\x12\n\nimage_data\x18\x01 \x01(\x0c\"p\n\x0eIdentifyResult\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x12\n\nsimilarity\x18\x02 \x01(\x02\x12\x0f\n\x07message\x18\x03 \x01(\t\x12(\n\x0btop_matches\x18\x04 \x03(\x0b\x32\x13.executor.FaceMatch\"1\n\x0fVerifyImagePair\x12\x0e\n\x06image1\x18\x01 \x01(\x0c\x12\x0e\n\x06image2\x18\x02 \x01(\x0c\"2\n\x0cVerifyResult\x12\x12\n\nsimilarity\x18\x01 \x01(\x02\x12\x0e\n\x06result\x18\x02 \x01(\t\"6\n\x0fRegisterRequest\x12\x12\n\nimage_data\x18\x01 \x01(\x0c\x12\x0f\n\x07user_id\x18\x02 \x01(\t\"4\n\x10RegisterResponse\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t2\xcd\x01\n\rDriverService\x12;\n\rRouteIdentify\x12\x12.driver.ImageQuery\x1a\x16.driver.IdentifyResult\x12<\n\x0bRouteVerify\x12\x17.driver.VerifyImagePair\x1a\x14.driver.VerifyResult\x12\x41\n\x0cRegisterFace\x12\x17.driver.RegisterRequest\x1a\x18.driver.RegisterResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0c\x64river.proto\x12\x06\x64river\x1a\x0c\x63ommon.proto\x1a\x0e\x65xecutor.proto\" \n\nImageQuery\x12\x12\n\nimage_data\x18\x01 \x01(\x0c\"H\n\x0eIdentifyResult\x12\x0f\n\x07message\x18\x01 \x01(\t\x12%\n\x07results\x18\x02 \x03(\x0b\x32\x14.executor.FaceResult\"1\n\x0fVerifyImagePair\x12\x0e\n\x06image1\x18\x01 \x01(\x0c\x12\x0e\n\x06image2\x18\x02 \x01(\x0c\"2\n\x0cVerifyResult\x12\x12\n\nsimilarity\x18\x01 \x01(\x02\x12\x0e\n\x06result\x18\x02 \x01(\t\"T\n\x0fRegisterRequest\x12\x12\n\nimage_data\x18\x01 \x01(\x0c\x12\x0f\n\x07user_id\x18\x02 \x01(\t\x12\x0c\n\x04name\x18\x03 \x01(\t\x12\x0e\n\x06origin\x18\x04 \x01(\t\"4\n\x10RegisterResponse\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t2\xcd\x01\n\rDriverService\x12;\n\rRouteIdentify\x12\x12.driver.ImageQuery\x1a\x16.driver.IdentifyResult\x12<\n\x0bRouteVerify\x12\x17.driver.VerifyImagePair\x1a\x14.driver.VerifyResult\x12\x41\n\x0cRegisterFace\x12\x17.driver.RegisterRequest\x1a\x18.driver.RegisterResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -36,15 +36,15 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_IMAGEQUERY']._serialized_start=54
   _globals['_IMAGEQUERY']._serialized_end=86
   _globals['_IDENTIFYRESULT']._serialized_start=88
-  _globals['_IDENTIFYRESULT']._serialized_end=200
-  _globals['_VERIFYIMAGEPAIR']._serialized_start=202
-  _globals['_VERIFYIMAGEPAIR']._serialized_end=251
-  _globals['_VERIFYRESULT']._serialized_start=253
-  _globals['_VERIFYRESULT']._serialized_end=303
-  _globals['_REGISTERREQUEST']._serialized_start=305
-  _globals['_REGISTERREQUEST']._serialized_end=359
-  _globals['_REGISTERRESPONSE']._serialized_start=361
-  _globals['_REGISTERRESPONSE']._serialized_end=413
-  _globals['_DRIVERSERVICE']._serialized_start=416
-  _globals['_DRIVERSERVICE']._serialized_end=621
+  _globals['_IDENTIFYRESULT']._serialized_end=160
+  _globals['_VERIFYIMAGEPAIR']._serialized_start=162
+  _globals['_VERIFYIMAGEPAIR']._serialized_end=211
+  _globals['_VERIFYRESULT']._serialized_start=213
+  _globals['_VERIFYRESULT']._serialized_end=263
+  _globals['_REGISTERREQUEST']._serialized_start=265
+  _globals['_REGISTERREQUEST']._serialized_end=349
+  _globals['_REGISTERRESPONSE']._serialized_start=351
+  _globals['_REGISTERRESPONSE']._serialized_end=403
+  _globals['_DRIVERSERVICE']._serialized_start=406
+  _globals['_DRIVERSERVICE']._serialized_end=611
 # @@protoc_insertion_point(module_scope)
