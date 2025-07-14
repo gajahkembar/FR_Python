@@ -63,7 +63,6 @@ class ControllerServicer(controller_pb2_grpc.ControllerServiceServicer):
             duration = (datetime.now() - start_time).total_seconds()
             logger.info(f"[{trx_id}] gRPC Identify duration: {duration:.4f}s")
 
-            # Logging semua hasil wajah
             for face in response.results:
                 best = face.top_matches[0]
                 logger.info(f"[{trx_id}] 🧠 Face-{face.face_index}: match {best.user_id} (sim={best.similarity:.4f})")

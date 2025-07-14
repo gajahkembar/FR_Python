@@ -40,7 +40,14 @@ def render():
 
         if result_data:
             if "error" in result_data:
-                st.error(f"❌ Gagal: {result_data['error']}")
+                raw_error = result_data['error']
+                
+                if "No face detected" in raw_error:
+                    st.warning("😕 Tidak ditemukan wajah pada gambar. Pastikan gambar berisi wajah yang terlihat jelas.")
+                elif "INVALID_ARGUMENT" in raw_error or "cannot process" in raw_error.lower():
+                    st.warning("⚠️ Gambar tidak valid atau terlalu buram. Coba gunakan gambar lain yang lebih jelas.")
+                else:
+                    st.error(f"❌ Terjadi kesalahan saat memproses gambar.\n\n**Detail teknis**: `{raw_error}`")
             else:
                 faces = result_data.get("faces", [])
                 st.success(f"✅ Ditemukan {len(faces)} wajah")
@@ -53,25 +60,30 @@ def render():
                     else:
                         query_crop_img = None
 
-                    for idx, match in enumerate(face["top_matches"], start=1):
-                        st.markdown(f"**#{idx} Kandidat**")
-                        cols = st.columns([1, 1, 3])  # [Query, Galeri, Metadata]
-
+                    if not face["top_matches"]:
+                        cols = st.columns([1, 4])
                         with cols[0]:
                             if query_crop_img:
                                 st.image(query_crop_img, caption="🖼️ Query", width=150)
+                        with cols[1]:
+                            st.warning("😕 Tidak ada kandidat yang cocok untuk wajah ini. Mungkin belum terdaftar atau gambar kurang jelas.")
+                        st.markdown("---")
+                        continue
 
+                    for idx, match in enumerate(face["top_matches"], start=1):
+                        cols = st.columns([1, 1, 3])
+                        with cols[0]:
+                            if query_crop_img:
+                                st.image(query_crop_img, caption="🖼️ Query", width=150)
                         with cols[1]:
                             if 'gallery_image' in match:
                                 match_crop_img = decode_base64_image(match['gallery_image'])
                                 st.image(match_crop_img, caption="🖼️ Galeri", width=150)
                             else:
                                 st.warning("❌")
-
                         with cols[2]:
                             st.markdown(f"- 🔗 UUID: `{match['user_id']}`")
                             st.markdown(f"- 👤 Nama: **{match['name']}**")
                             st.markdown(f"- 🏫 Asal: {match['origin']}")
                             st.markdown(f"- 📈 Similarity: `{match['similarity']:.4f}`")
-
                         st.markdown("---")

@@ -42,4 +42,12 @@ def render():
                 st.markdown(f"- 📈 Similarity: `{result['similarity']:.4f}`")
                 st.markdown(f"- 📌 Hasil: **{result['result']}**")
             else:
-                st.error(f"❌ Error: {response.text}")
+                try:
+                    err = response.json()
+                    detail = err.get("detail", "")
+                    if "No face detected" in detail:
+                        st.warning("⚠️ Wajah tidak terdeteksi di salah satu atau kedua gambar. Silakan unggah foto wajah yang jelas dan menghadap kamera.")
+                    else:
+                        st.error(f"❌ Terjadi kesalahan: {detail}")
+                except Exception:
+                    st.error(f"❌ Gagal memproses verifikasi. Status: {response.status_code}")
