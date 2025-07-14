@@ -41,4 +41,21 @@ def load_all_embeddings_from_postgres():
     results = cur.fetchall()
     cur.close()
     conn.close()
-    return results  # list of tuples (uuid, embedding)
+    return results
+
+def get_user_id_by_name_origin(name, origin):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT uuid FROM face_embedding WHERE name = %s AND origin = %s", (name, origin))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return row[0] if row else None
+
+def delete_embedding_from_postgres(user_id):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM face_embedding WHERE uuid = %s", (user_id,))
+    conn.commit()
+    cur.close()
+    conn.close()

@@ -53,3 +53,11 @@ def get_metadata_by_name_origin(name: str, origin: str):
     cur.close()
     conn.close()
     return result
+
+def delete_metadata_from_postgres(user_id: str):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM face_metadata WHERE uuid = %s", (user_id,))
+    conn.commit()
+    cur.close()
+    conn.close()

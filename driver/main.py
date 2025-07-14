@@ -155,6 +155,31 @@ class DriverServicer(driver_pb2_grpc.DriverServiceServicer):
             context.set_details(str(e))
             return driver_pb2.RegisterResponse(user_id=request.user_id, message="FAILED")
 
+    def GetUserId(self, request, context):
+        try:
+            stub = self.get_executor_stub()
+            res = stub.GetUserId(executor_pb2.NameOriginQuery(
+                name=request.name,
+                origin=request.origin
+            ))
+            return driver_pb2.UserIdResult(user_id=res.user_id)
+        except Exception as e:
+            logger.error(f"❌ GetUserId failed: {e}")
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
+            return driver_pb2.UserIdResult(user_id="")
+
+    def DeleteFace(self, request, context):
+        try:
+            stub = self.get_executor_stub()
+            res = stub.DeleteFace(executor_pb2.DeleteRequest(user_id=request.user_id))
+            return driver_pb2.DeleteResponse(message=res.message)
+        except Exception as e:
+            logger.error(f"❌ DeleteFace failed: {e}")
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
+            return driver_pb2.DeleteResponse(message="FAILED")
+
 def serve(port):
     server = grpc.server(ThreadPoolExecutor(max_workers=os.cpu_count()))
     driver_pb2_grpc.add_DriverServiceServicer_to_server(DriverServicer(), server)

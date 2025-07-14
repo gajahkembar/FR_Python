@@ -23,4 +23,8 @@ def load_all_embeddings_from_redis():
     for key in keys:
         uuid = key.decode().split(":")[1] if isinstance(key, bytes) else key.split(":")[1]
         embeddings[uuid] = redis_client.get(key)
-    return embeddings  # dict {uuid: embedding_bytes}
+    return embeddings
+
+def delete_embedding_from_redis(user_id):
+    key = f"face:{user_id}"
+    redis_client.delete(key)

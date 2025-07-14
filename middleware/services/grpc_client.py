@@ -2,19 +2,23 @@ import uuid
 import grpc
 import base64
 import os
+import shutil
 from typing import List
 from proto import controller_pb2, controller_pb2_grpc
 from middleware.db.postgres import (
     save_metadata_to_postgres,
     get_metadata_from_postgres,
     check_duplicate_name_origin,
-    get_metadata_by_name_origin
+    get_metadata_by_name_origin,
+    delete_metadata_from_postgres
 )
 from middleware.db.redis import (
     save_metadata_to_redis,
     get_metadata_from_redis,
     check_duplicate_in_redis,
-    save_name_origin_to_redis
+    save_name_origin_to_redis,
+    delete_metadata_from_redis, 
+    delete_name_origin_mapping
 )
 
 # gRPC stub helper
@@ -135,4 +139,36 @@ def verify_face(image1_bytes: bytes, image2_bytes: bytes):
     return {
         "similarity": response.similarity,
         "result": response.result
+    }
+
+def delete_face(name: str, origin: str):
+    name = name.strip().lower()
+    origin = origin.strip().lower()
+    
+    stub = get_controller_stub()
+
+    user_id = check_duplicate_in_redis(name, origin)
+    if not user_id:
+        user_id = check_duplicate_name_origin(name, origin)
+    if not user_id:
+        return {"status": "not_found"}
+
+    delete_metadata_from_postgres(user_id)
+    delete_metadata_from_redis(user_id)
+    delete_name_origin_mapping(user_id)
+
+    folder = f"{name}_{origin}_{user_id}"
+    folder_path = os.path.join("data", folder)
+
+    if os.path.exists(folder_path):
+        shutil.rmtree(folder_path)
+    else:
+        print(f"📁 Folder '{folder_path}' tidak ditemukan, mungkin sudah terhapus sebelumnya.")
+
+    request = controller_pb2.DeleteRequest(user_id=user_id)
+    stub.DeleteFace(request)
+
+    return {
+        "status": "deleted",
+        "user_id": user_id
     }

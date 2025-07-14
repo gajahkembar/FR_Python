@@ -8,6 +8,7 @@ service ControllerService {
   rpc Identify (IdentifyRequest) returns (IdentifyResponse);
   rpc VerifyFaces (VerifyRequest) returns (VerifyResponse);
   rpc RegisterFace (RegisterRequest) returns (RegisterResponse);
+  rpc DeleteFace (DeleteRequest) returns (DeleteResponse);
 }
 
 message IdentifyRequest {
@@ -39,4 +40,12 @@ message RegisterRequest {
 message RegisterResponse {
   string user_id = 1;
   string message = 2;
+}
+
+message DeleteRequest {
+  string user_id = 1;
+}
+
+message DeleteResponse {
+  string message = 1;
 }

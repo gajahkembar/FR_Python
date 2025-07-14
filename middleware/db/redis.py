@@ -28,3 +28,13 @@ def check_duplicate_in_redis(name: str, origin: str):
 def save_name_origin_to_redis(name: str, origin: str, uuid: str):
     key = f"user_by_name_origin:{name.lower()}_{origin.lower()}"
     redis_client.set(key, uuid)
+
+def delete_metadata_from_redis(user_id: str):
+    redis_client.delete(f"user:{user_id}")
+
+def delete_name_origin_mapping(user_id: str):
+    pattern = "user_by_name_origin:*"
+    for key in redis_client.scan_iter(match=pattern):
+        if redis_client.get(key) == user_id:
+            redis_client.delete(key)
+            break

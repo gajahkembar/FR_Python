@@ -13,8 +13,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from proto import executor_pb2, executor_pb2_grpc
 from src.embedder import ArcFaceEmbedder
 from src.aligner import get_aligned_faces
-from executor.db.postgres import save_embedding_to_postgres
-from executor.db.redis import save_embedding_to_redis, load_all_embeddings_from_redis
+from executor.db.postgres import save_embedding_to_postgres, delete_embedding_from_postgres, get_user_id_by_name_origin
+from executor.db.redis import save_embedding_to_redis, load_all_embeddings_from_redis, delete_embedding_from_redis
 
 
 def setup_logger(port):
@@ -182,6 +182,38 @@ class ExecutorServicer(executor_pb2_grpc.ExecutorServiceServicer):
             self.logger.error(f"[{trx_id}] ❌ Register failed: {e}")
             context.set_code(grpc.StatusCode.INTERNAL)
             return executor_pb2.RegisterResponse(message="Failed")
+
+    def DeleteFace(self, request, context):
+        trx_id = datetime.now().strftime('%Y%m%d%H%M%S%f')
+        self.logger.info(f"[{trx_id}] ▶️ DeleteFace for user_id={request.user_id}")
+        try:
+            base = "data"
+            for folder in os.listdir(base):
+                if request.user_id in folder:
+                    folder_path = os.path.join(base, folder)
+                    if os.path.isdir(folder_path):
+                        for f in os.listdir(folder_path):
+                            os.remove(os.path.join(folder_path, f))
+                        os.rmdir(folder_path)
+                        self.logger.info(f"[{trx_id}] 🗑️ Deleted folder {folder_path}")
+                    break
+
+            delete_embedding_from_redis(request.user_id)
+            delete_embedding_from_postgres(request.user_id)
+            return executor_pb2.DeleteResponse(message="OK")
+        except Exception as e:
+            self.logger.error(f"[{trx_id}] ❌ DeleteFace error: {e}")
+            context.set_code(grpc.StatusCode.INTERNAL)
+            return executor_pb2.DeleteResponse(message="FAILED")
+
+    def GetUserId(self, request, context):
+        try:
+            user_id = get_user_id_by_name_origin(request.name, request.origin)
+            return executor_pb2.UserIdResult(user_id=user_id or "")
+        except Exception as e:
+            self.logger.error(f"❌ GetUserId failed: {e}")
+            context.set_code(grpc.StatusCode.INTERNAL)
+            return executor_pb2.UserIdResult(user_id="")
 
 def run_executor(port):
     logger = setup_logger(port)

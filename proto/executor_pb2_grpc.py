@@ -49,6 +49,16 @@ class ExecutorServiceStub(object):
                 request_serializer=executor__pb2.RegisterRequest.SerializeToString,
                 response_deserializer=executor__pb2.RegisterResponse.FromString,
                 _registered_method=True)
+        self.DeleteFace = channel.unary_unary(
+                '/executor.ExecutorService/DeleteFace',
+                request_serializer=executor__pb2.DeleteRequest.SerializeToString,
+                response_deserializer=executor__pb2.DeleteResponse.FromString,
+                _registered_method=True)
+        self.GetUserId = channel.unary_unary(
+                '/executor.ExecutorService/GetUserId',
+                request_serializer=executor__pb2.NameOriginQuery.SerializeToString,
+                response_deserializer=executor__pb2.UserIdResult.FromString,
+                _registered_method=True)
 
 
 class ExecutorServiceServicer(object):
@@ -72,6 +82,18 @@ class ExecutorServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def DeleteFace(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetUserId(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ExecutorServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -89,6 +111,16 @@ def add_ExecutorServiceServicer_to_server(servicer, server):
                     servicer.RegisterFace,
                     request_deserializer=executor__pb2.RegisterRequest.FromString,
                     response_serializer=executor__pb2.RegisterResponse.SerializeToString,
+            ),
+            'DeleteFace': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteFace,
+                    request_deserializer=executor__pb2.DeleteRequest.FromString,
+                    response_serializer=executor__pb2.DeleteResponse.SerializeToString,
+            ),
+            'GetUserId': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetUserId,
+                    request_deserializer=executor__pb2.NameOriginQuery.FromString,
+                    response_serializer=executor__pb2.UserIdResult.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -172,6 +204,60 @@ class ExecutorService(object):
             '/executor.ExecutorService/RegisterFace',
             executor__pb2.RegisterRequest.SerializeToString,
             executor__pb2.RegisterResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DeleteFace(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/executor.ExecutorService/DeleteFace',
+            executor__pb2.DeleteRequest.SerializeToString,
+            executor__pb2.DeleteResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetUserId(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/executor.ExecutorService/GetUserId',
+            executor__pb2.NameOriginQuery.SerializeToString,
+            executor__pb2.UserIdResult.FromString,
             options,
             channel_credentials,
             insecure,

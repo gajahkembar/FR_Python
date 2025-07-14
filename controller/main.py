@@ -68,7 +68,7 @@ class ControllerServicer(controller_pb2_grpc.ControllerServiceServicer):
                 best = face.top_matches[0]
                 logger.info(f"[{trx_id}] 🧠 Face-{face.face_index}: match {best.user_id} (sim={best.similarity:.4f})")
                 logger.info(f"[{trx_id}] Face-{face.face_index} crop size: {len(face.crop_image)} bytes")
-                
+
             return controller_pb2.IdentifyResponse(
                 message="OK",
                 results=response.results
@@ -135,6 +135,32 @@ class ControllerServicer(controller_pb2_grpc.ControllerServiceServicer):
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return controller_pb2.RegisterResponse(user_id="", message="Internal error")
+
+    def DeleteFace(self, request, context):
+        trx_id = datetime.now().strftime('%Y%m%d%H%M%S%f')
+        logger.info(f"[{trx_id}] Received DeleteFace request")
+
+        try:
+            user_id = request.user_id
+            if not user_id:
+                logger.warning(f"[{trx_id}] Empty user_id in request")
+                return controller_pb2.DeleteResponse(message="user_id_missing")
+
+            # Kirim permintaan hapus ke semua driver
+            for addr in self.driver_stubs:
+                try:
+                    self.driver_stubs[addr].DeleteFace(driver_pb2.DeleteRequest(user_id=user_id))
+                    logger.info(f"[{trx_id}] Sent delete to driver {addr}")
+                except Exception as e:
+                    logger.warning(f"[{trx_id}] Driver {addr} failed to delete: {e}")
+
+            return controller_pb2.DeleteResponse(message="success")
+
+        except Exception as e:
+            logger.exception(f"[{trx_id}] DeleteFace failed")
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
+            return controller_pb2.DeleteResponse(message="error")
 
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))

@@ -8,6 +8,8 @@ service DriverService {
   rpc RouteIdentify (ImageQuery) returns (IdentifyResult);
   rpc RouteVerify (VerifyImagePair) returns (VerifyResult);
   rpc RegisterFace (RegisterRequest) returns (RegisterResponse);
+  rpc GetUserId (NameOriginQuery) returns (UserIdResult);
+  rpc DeleteFace (DeleteRequest) returns (DeleteResponse);
 }
 
 message ImageQuery {
@@ -39,4 +41,21 @@ message RegisterRequest {
 message RegisterResponse {
   string user_id = 1;
   string message = 2;
+}
+
+message NameOriginQuery {
+  string name = 1;
+  string origin = 2;
+}
+
+message UserIdResult {
+  string user_id = 1;
+}
+
+message DeleteRequest {
+  string user_id = 1;
+}
+
+message DeleteResponse {
+  string message = 1;
 }

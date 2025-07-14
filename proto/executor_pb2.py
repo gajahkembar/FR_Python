@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from proto import common_pb2 as common__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0e\x65xecutor.proto\x12\x08\x65xecutor\x1a\x0c\x63ommon.proto\"0\n\tFaceMatch\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x12\n\nsimilarity\x18\x02 \x01(\x02\"^\n\nFaceResult\x12\x12\n\nface_index\x18\x01 \x01(\x05\x12(\n\x0btop_matches\x18\x02 \x03(\x0b\x32\x13.executor.FaceMatch\x12\x12\n\ncrop_image\x18\x03 \x01(\x0c\"$\n\x0e\x43omputeRequest\x12\x12\n\nimage_data\x18\x01 \x01(\x0c\"8\n\x0f\x43omputeResponse\x12%\n\x07results\x18\x01 \x03(\x0b\x32\x14.executor.FaceResult\"/\n\rVerifyRequest\x12\x0e\n\x06image1\x18\x01 \x01(\x0c\x12\x0e\n\x06image2\x18\x02 \x01(\x0c\"4\n\x0eVerifyResponse\x12\x12\n\nsimilarity\x18\x01 \x01(\x02\x12\x0e\n\x06result\x18\x02 \x01(\t\"T\n\x0fRegisterRequest\x12\x12\n\nimage_data\x18\x01 \x01(\x0c\x12\x0f\n\x07user_id\x18\x02 \x01(\t\x12\x0c\n\x04name\x18\x03 \x01(\t\x12\x0e\n\x06origin\x18\x04 \x01(\t\"#\n\x10RegisterResponse\x12\x0f\n\x07message\x18\x01 \x01(\t2\xe4\x01\n\x0f\x45xecutorService\x12H\n\x11\x43omputeSimilarity\x12\x18.executor.ComputeRequest\x1a\x19.executor.ComputeResponse\x12@\n\x0bVerifyFaces\x12\x17.executor.VerifyRequest\x1a\x18.executor.VerifyResponse\x12\x45\n\x0cRegisterFace\x12\x19.executor.RegisterRequest\x1a\x1a.executor.RegisterResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0e\x65xecutor.proto\x12\x08\x65xecutor\x1a\x0c\x63ommon.proto\"0\n\tFaceMatch\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x12\n\nsimilarity\x18\x02 \x01(\x02\"^\n\nFaceResult\x12\x12\n\nface_index\x18\x01 \x01(\x05\x12(\n\x0btop_matches\x18\x02 \x03(\x0b\x32\x13.executor.FaceMatch\x12\x12\n\ncrop_image\x18\x03 \x01(\x0c\"$\n\x0e\x43omputeRequest\x12\x12\n\nimage_data\x18\x01 \x01(\x0c\"8\n\x0f\x43omputeResponse\x12%\n\x07results\x18\x01 \x03(\x0b\x32\x14.executor.FaceResult\"/\n\rVerifyRequest\x12\x0e\n\x06image1\x18\x01 \x01(\x0c\x12\x0e\n\x06image2\x18\x02 \x01(\x0c\"4\n\x0eVerifyResponse\x12\x12\n\nsimilarity\x18\x01 \x01(\x02\x12\x0e\n\x06result\x18\x02 \x01(\t\"T\n\x0fRegisterRequest\x12\x12\n\nimage_data\x18\x01 \x01(\x0c\x12\x0f\n\x07user_id\x18\x02 \x01(\t\x12\x0c\n\x04name\x18\x03 \x01(\t\x12\x0e\n\x06origin\x18\x04 \x01(\t\"#\n\x10RegisterResponse\x12\x0f\n\x07message\x18\x01 \x01(\t\" \n\rDeleteRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\"!\n\x0e\x44\x65leteResponse\x12\x0f\n\x07message\x18\x01 \x01(\t\"/\n\x0fNameOriginQuery\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0e\n\x06origin\x18\x02 \x01(\t\"\x1f\n\x0cUserIdResult\x12\x0f\n\x07user_id\x18\x01 \x01(\t2\xe5\x02\n\x0f\x45xecutorService\x12H\n\x11\x43omputeSimilarity\x12\x18.executor.ComputeRequest\x1a\x19.executor.ComputeResponse\x12@\n\x0bVerifyFaces\x12\x17.executor.VerifyRequest\x1a\x18.executor.VerifyResponse\x12\x45\n\x0cRegisterFace\x12\x19.executor.RegisterRequest\x1a\x1a.executor.RegisterResponse\x12?\n\nDeleteFace\x12\x17.executor.DeleteRequest\x1a\x18.executor.DeleteResponse\x12>\n\tGetUserId\x12\x19.executor.NameOriginQuery\x1a\x16.executor.UserIdResultb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -48,6 +48,14 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_REGISTERREQUEST']._serialized_end=471
   _globals['_REGISTERRESPONSE']._serialized_start=473
   _globals['_REGISTERRESPONSE']._serialized_end=508
-  _globals['_EXECUTORSERVICE']._serialized_start=511
-  _globals['_EXECUTORSERVICE']._serialized_end=739
+  _globals['_DELETEREQUEST']._serialized_start=510
+  _globals['_DELETEREQUEST']._serialized_end=542
+  _globals['_DELETERESPONSE']._serialized_start=544
+  _globals['_DELETERESPONSE']._serialized_end=577
+  _globals['_NAMEORIGINQUERY']._serialized_start=579
+  _globals['_NAMEORIGINQUERY']._serialized_end=626
+  _globals['_USERIDRESULT']._serialized_start=628
+  _globals['_USERIDRESULT']._serialized_end=659
+  _globals['_EXECUTORSERVICE']._serialized_start=662
+  _globals['_EXECUTORSERVICE']._serialized_end=1019
 # @@protoc_insertion_point(module_scope)
