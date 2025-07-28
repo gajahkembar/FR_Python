@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package Controller;
+
+service ControllerService {
+  rpc RouteRegisterFace(RegisterRequest) returns (RegisterReply);
+  rpc RouteIdentifyFace(IdentifyRequest) returns (IdentifyReply);
+  rpc RouteVerifyFace(VerifyRequest) returns (VerifyReply);
+}
+
+message RegisterRequest {
+  string user_id = 1;
+  string name = 2;
+  string origin = 3;
+  bytes image_data = 4;
+}
+message RegisterReply {
+  string user_id = 1;
+  string message = 2;
+}
+
+message IdentifyRequest {
+  bytes image_data = 1;
+}
+message IdentifyReply {
+  repeated FaceResult results = 1;
+}
+
+message VerifyRequest {
+  bytes image1 = 1;
+  bytes image2 = 2;
+}
+message VerifyReply {
+  float similarity = 1;
+  string result = 2;
+}
+
+message FaceResult {
+  int32 face_index = 1;
+  bytes crop_image = 2;
+
+  message MatchCandidate {
+    string user_id = 1;
+    float confidence = 2;
+  }
+
+  repeated MatchCandidate top_matches = 3;
+}

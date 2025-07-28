@@ -1,0 +1,22 @@
+🚀 Driver aktif di port 1968
+🚀 Driver aktif di port 1967
+🚀 Driver aktif di port 1969
+[2025-07-26 22:42:01] [port 1969] ⚙️  Called RouteRegisterFace: 
+[2025-07-26 22:42:01] [port 1969] 🔁 Routing to Executor at localhost:6005
+[2025-07-26 22:42:02] [port 1969] ✅ Registered: 20E230F4-388C-4377-B55A-90E92B56E3F6 | name=mann, origin=semarang
+[2025-07-27 09:24:38] [port 1967] ⚙️  Called RouteRegisterFace: 
+[2025-07-27 09:24:38] [port 1967] 🔁 Routing to Executor at localhost:6003
+[2025-07-27 09:24:39] [port 1967] ✅ Registered: 5BDACA53-052E-4B37-B01A-AE1D3F379FE6 | name=zall, origin=semarang
+[2025-07-27 09:25:38] [port 1968] ⚙️  Called RouteIdentifyFace
+[2025-07-27 09:25:38] [port 1968] 🔁 Routing to Executor at localhost:6004
+[2025-07-27 09:25:39] [port 1968] 🔍 Face-0:
+[2025-07-27 09:25:39] [port 1968]    - match 5BDACA53-052E-4B37-B01A-AE1D3F379FE6 (sim=0.648861)
+[2025-07-27 09:25:39] [port 1968] 🔍 Face-1:
+[2025-07-27 09:25:39] [port 1968]    - match 20E230F4-388C-4377-B55A-90E92B56E3F6 (sim=0.765071)
+[2025-07-27 09:25:39] [port 1968] ✅ Identify selesai, wajah terdeteksi: 2
+[2025-07-27 09:28:11] [port 1969] ⚙️  Called RouteVerifyFace
+[2025-07-27 09:28:12] [port 1969] ✅ RouteVerifyFace done: sim=0.443167 | result=REVIEW
+[2025-07-27 21:49:08] [port 1967] ⚙️  Called RouteVerifyFace
+[2025-07-27 21:49:09] [port 1967] ✅ RouteVerifyFace done: sim=0.443167 | result=REVIEW
+[2025-07-27 21:50:21] [port 1968] ⚙️  Called RouteVerifyFace
+[2025-07-27 21:50:23] [port 1968] ✅ RouteVerifyFace done: sim=0.639938 | result=MATCH
